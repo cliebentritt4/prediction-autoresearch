@@ -1,16 +1,29 @@
 """
 market/indexers/kalshi/trades.py — Kalshi trade history collector.
 
-Fetches trade history from the Kalshi API with pagination and
-incremental progress. Writes to parquet.
+Fetches trade history from the Kalshi API with RSA-PSS request signing
+and cursor-based pagination. Writes to parquet.
 """
 
+import time
+import base64
 import requests
 import pandas as pd
 from tqdm import tqdm
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.backends import default_backend
 
 from market.indexers.base import Indexer
-from market.config import KALSHI_API_KEY, DATA_DIR
+from market.config import (
+    KALSHI_API_KEY_ID,
+    KALSHI_API_KEY_FILE,
+    KALSHI_API_BASE_URL,
+    DATA_DIR,
+)
+
+# Reuse signing utilities from markets module
+from market.indexers.kalshi.markets import _load_private_key, _kalshi_headers
 
 
 class KalshiTradesIndexer(Indexer):
@@ -20,26 +33,30 @@ class KalshiTradesIndexer(Indexer):
         if output_dir is None:
             output_dir = f"{DATA_DIR}/kalshi/trades"
         super().__init__(output_dir)
-        self.api_key = KALSHI_API_KEY
-        self.base_url = "https://api.kalshi.com/trade-api/v2"
+        self.key_id = KALSHI_API_KEY_ID
+        self.base_url = KALSHI_API_BASE_URL
+        self.private_key = _load_private_key(KALSHI_API_KEY_FILE)
 
     def run(self) -> None:
         """Fetch all Kalshi trades with pagination and save to parquet."""
         progress = self.load_progress()
         cursor = progress.get("cursor", None)
-
-        headers = {"Authorization": f"Bearer {self.api_key}"}
         all_trades = []
 
         print("Fetching Kalshi trades...")
         with tqdm(desc="Trades") as pbar:
             while True:
+                path = "/trade-api/v2/markets/trades"
                 params = {"limit": 1000}
                 if cursor:
                     params["cursor"] = cursor
 
+                headers = _kalshi_headers(
+                    self.private_key, self.key_id, "GET", path
+                )
+
                 response = requests.get(
-                    f"{self.base_url}/trades",
+                    f"{self.base_url}{path}",
                     headers=headers,
                     params=params,
                 )
@@ -50,14 +67,14 @@ class KalshiTradesIndexer(Indexer):
                 if not trades:
                     break
 
-                for trade in trades:
+                for t in trades:
                     all_trades.append({
-                        "ticker": trade.get("ticker"),
-                        "yes_price": trade.get("yes_price", 0),
-                        "no_price": trade.get("no_price", 0),
-                        "count": trade.get("count", 0),
-                        "taker_side": trade.get("taker_side", ""),
-                        "created_time": pd.to_datetime(trade.get("created_time")),
+                        "ticker": t.get("ticker"),
+                        "yes_price": t.get("yes_price", 0),
+                        "no_price": t.get("no_price", 0),
+                        "count": t.get("count", 0),
+                        "taker_side": t.get("taker_side", ""),
+                        "created_time": pd.to_datetime(t.get("created_time")),
                     })
                     pbar.update(1)
 
@@ -69,8 +86,8 @@ class KalshiTradesIndexer(Indexer):
 
         if all_trades:
             df = pd.DataFrame(all_trades)
-            path = self.save_parquet(df, "kalshi_trades.parquet")
-            print(f"Saved {len(df)} trades to {path}")
+            out = self.save_parquet(df, "kalshi_trades.parquet")
+            print(f"Saved {len(df)} trades to {out}")
         else:
             print("No trades fetched.")
 

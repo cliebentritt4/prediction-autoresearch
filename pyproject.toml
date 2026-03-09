@@ -6,13 +6,10 @@ requires-python = ">=3.11"
 license = { text = "MIT" }
 
 dependencies = [
-    # === autoresearch-mlx core ===
     "mlx>=0.22.0",
     "numpy>=1.26",
     "tiktoken>=0.8",
     "huggingface-hub>=0.24",
-
-    # === prediction-market-analysis core ===
     "duckdb>=1.1",
     "pandas>=2.1",
     "matplotlib>=3.8",
@@ -20,10 +17,9 @@ dependencies = [
     "brokenaxes>=0.6",
     "requests>=2.31",
     "python-dotenv>=1.0",
-    "pyarrow>=15.0",              # Parquet read/write
-
-    # === bridge dependencies (new) ===
-    "tqdm>=4.66",                 # Progress bars for indexing
+    "pyarrow>=15.0",
+    "tqdm>=4.66",
+    "cryptography>=42.0",         # Kalshi API RSA-PSS request signing
 ]
 
 [build-system]
@@ -35,13 +31,3 @@ dev-dependencies = [
     "pytest>=8.0",
     "ruff>=0.5",
 ]
-
-[tool.ruff]
-line-length = 100
-target-version = "py311"
-
-[tool.ruff.lint]
-select = ["E", "F", "I"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
