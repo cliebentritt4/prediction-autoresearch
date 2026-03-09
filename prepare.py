@@ -100,7 +100,7 @@ def load_shard_tokens(shard_path: Path) -> np.ndarray:
     enc = get_tokenizer()
     all_tokens = []
     for text in texts:
-        tokens = enc.encode(text, allowed_special=set())
+        tokens = enc.encode(text, allowed_special={"<|endoftext|>"}, disallowed_special=())
         all_tokens.extend(tokens)
     return np.array(all_tokens, dtype=np.int32)
 
