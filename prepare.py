@@ -40,8 +40,12 @@ TEXT_CACHE_DIR = Path(os.path.expanduser("~/.cache/autoresearch"))
 TEXT_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # HuggingFace dataset for text shards
-HF_REPO = "karpathy/llmc-starter-pack"
-SHARD_FILENAMES = [f"data_shard_{i:04d}.bin" for i in range(10)]
+HF_REPO = "karpathy/climbmix-400b-shuffle"
+BASE_URL = f"https://huggingface.co/datasets/{HF_REPO}/resolve/main"
+MAX_SHARD = 6542  # shard_00000.parquet through shard_06542.parquet
+# Download just 10 shards for dev (enough for experiments)
+NUM_SHARDS = 10
+SHARD_FILENAMES = [f"shard_{i:05d}.parquet" for i in range(NUM_SHARDS)]
 
 # ---------------------------------------------------------------------------
 # Tokenizer
@@ -64,6 +68,8 @@ def tokens_to_bytes_ratio() -> float:
 
 def download_text_data():
     """Download text data shards from HuggingFace if not cached."""
+    import pyarrow.parquet as pq
+
     for shard_name in SHARD_FILENAMES:
         shard_path = TEXT_CACHE_DIR / shard_name
         if shard_path.exists():
@@ -75,17 +81,28 @@ def download_text_data():
             repo_type="dataset",
             local_dir=str(TEXT_CACHE_DIR),
         )
-        print(f"  -> {downloaded}")
+        # Move from nested structure to flat cache dir
+        downloaded_path = Path(downloaded)
+        if downloaded_path != shard_path:
+            import shutil
+            shutil.move(str(downloaded_path), str(shard_path))
+        print(f"  -> {shard_path}")
     print(f"All text shards cached in {TEXT_CACHE_DIR}")
 
 
 def load_shard_tokens(shard_path: Path) -> np.ndarray:
-    """Load a binary shard file as uint16 token array."""
-    with open(shard_path, "rb") as f:
-        # First 256 bytes are header
-        header = f.read(256)
-        tokens = np.frombuffer(f.read(), dtype=np.uint16)
-    return tokens
+    """Load a parquet shard and tokenize the text column."""
+    import pyarrow.parquet as pq
+
+    table = pq.read_table(shard_path)
+    # climbmix parquet has a 'text' column
+    texts = table.column("text").to_pylist()
+    enc = get_tokenizer()
+    all_tokens = []
+    for text in texts:
+        tokens = enc.encode(text, allowed_special=set())
+        all_tokens.extend(tokens)
+    return np.array(all_tokens, dtype=np.int32)
 
 
 # ---------------------------------------------------------------------------
@@ -103,11 +120,11 @@ class DataLoader:
         self.batch_size = batch_size
         self.seq_len = seq_len
 
-        # Use first 9 shards for train, last 1 for val
+        # Use first N-1 shards for train, last 1 for val
         if split == "train":
-            shard_indices = list(range(9))
+            shard_indices = list(range(NUM_SHARDS - 1))
         else:
-            shard_indices = [9]
+            shard_indices = [NUM_SHARDS - 1]
 
         # Load and concatenate all shard tokens
         all_tokens = []
