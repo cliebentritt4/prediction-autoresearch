@@ -10,7 +10,6 @@ import duckdb
 import pandas as pd
 
 from market.config import (
-    DATA_DIR,
     KALSHI_MARKETS_GLOB,
     KALSHI_TRADES_GLOB,
     POLYMARKET_MARKETS_GLOB,

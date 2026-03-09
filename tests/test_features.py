@@ -6,7 +6,6 @@ DataFrame schema and value ranges.
 """
 
 import pandas as pd
-import pytest
 
 from market.features.extract import (
     FEATURE_COLUMNS,

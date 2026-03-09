@@ -20,7 +20,6 @@ import math
 import mlx.core as mx
 import mlx.nn as nn
 import mlx.optimizers as optim
-import numpy as np
 
 from prepare import (
     DataLoader,
@@ -146,7 +145,7 @@ def get_lr(step: int) -> float:
 # ---------------------------------------------------------------------------
 
 def train():
-    print(f"=== Baseline Training ===")
+    print("=== Baseline Training ===")
     print(f"  d_model={D_MODEL}, n_layers={N_LAYERS}, n_heads={N_HEADS}, d_ff={D_FF}")
     print(f"  batch_size={BATCH_SIZE}, seq_len={SEQ_LEN}, lr={LEARNING_RATE}")
 

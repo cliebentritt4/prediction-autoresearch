@@ -26,7 +26,7 @@ def main():
         cls = ANALYSES[name]
         print(f"  {i}. {name} — {cls.__doc__.strip().splitlines()[0] if cls.__doc__ else 'No description'}")
 
-    print(f"\n  0. Run all")
+    print("\n  0. Run all")
     print()
 
     try:

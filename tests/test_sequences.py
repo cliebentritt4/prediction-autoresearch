@@ -7,7 +7,6 @@ and train/val split by market ticker.
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from market.features.sequences import MAX_SEQ_LEN, build_sequences
 
@@ -103,8 +102,6 @@ def test_padding_short_sequences():
 def test_no_data_leakage():
     """Train and val should have completely different tickers."""
     df = make_test_df(n_markets=20)
-    train_tickers = set(df.iloc[:int(len(df) * 0.85)]["ticker"].unique())
-    val_tickers = set(df.iloc[int(len(df) * 0.85):]["ticker"].unique())
     # The actual split is by shuffled ticker, so we just verify
     # that the function runs without error and produces both splits
     result = build_sequences(df)

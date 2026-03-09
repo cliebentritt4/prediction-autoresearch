@@ -17,7 +17,6 @@ Usage:
 import os
 import sys
 import time
-import struct
 from pathlib import Path
 
 import mlx.core as mx
@@ -68,8 +67,6 @@ def tokens_to_bytes_ratio() -> float:
 
 def download_text_data():
     """Download text data shards from HuggingFace if not cached."""
-    import pyarrow.parquet as pq
-
     for shard_name in SHARD_FILENAMES:
         shard_path = TEXT_CACHE_DIR / shard_name
         if shard_path.exists():

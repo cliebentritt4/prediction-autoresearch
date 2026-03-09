@@ -3,9 +3,6 @@ tests/test_config.py — Tests that config paths resolve correctly.
 """
 
 import os
-from pathlib import Path
-
-import pytest
 
 
 def test_config_imports():
