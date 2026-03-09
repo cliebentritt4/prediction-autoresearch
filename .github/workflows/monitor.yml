@@ -1,0 +1,76 @@
+name: Data Health Monitor
+
+on:
+  schedule:
+    # Check every 6 hours
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+jobs:
+  check-data-health:
+    runs-on: [self-hosted, macOS, ARM64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Check data freshness
+        id: health
+        run: |
+          uv run python -c "
+          import json, time
+          from pathlib import Path
+
+          data_dir = Path('data')
+          report = {}
+          stale = []
+
+          for platform in ['kalshi', 'polymarket']:
+              for dataset in ['markets', 'trades']:
+                  d = data_dir / platform / dataset
+                  if not d.exists():
+                      report[f'{platform}/{dataset}'] = 'MISSING'
+                      stale.append(f'{platform}/{dataset} (missing)')
+                      continue
+                  parquets = list(d.glob('*.parquet'))
+                  if not parquets:
+                      report[f'{platform}/{dataset}'] = 'EMPTY'
+                      stale.append(f'{platform}/{dataset} (empty)')
+                      continue
+                  newest = max(p.stat().st_mtime for p in parquets)
+                  age_h = (time.time() - newest) / 3600
+                  size_mb = sum(p.stat().st_size for p in parquets) / 1e6
+                  status = 'STALE' if age_h > 48 else 'OK'
+                  report[f'{platform}/{dataset}'] = f'{status} | {len(parquets)} files | {size_mb:.0f}MB | {age_h:.1f}h old'
+                  if status == 'STALE':
+                      stale.append(f'{platform}/{dataset} ({age_h:.0f}h old)')
+
+          print('## Data Health Report')
+          for k, v in report.items():
+              emoji = '✅' if 'OK' in str(v) else '⚠️'
+              print(f'{emoji} **{k}**: {v}')
+
+          if stale:
+              print(f'\n⚠️ Stale datasets: {\", \".join(stale)}')
+              print('::warning::Stale datasets detected: ' + ', '.join(stale))
+          else:
+              print('\n✅ All datasets healthy')
+          " >> $GITHUB_STEP_SUMMARY
+
+      - name: Check indexer progress files
+        run: |
+          echo "## Indexer Progress" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          for f in data/*/markets/progress.json data/*/trades/progress.json; do
+            if [ -f "$f" ]; then
+              echo "--- $f ---"
+              python3 -c "import json; d=json.load(open('$f')); print(json.dumps({k:v for k,v in d.items() if k != 'completed_markets'}, indent=2))"
+            fi
+          done >> $GITHUB_STEP_SUMMARY 2>&1
+          echo '```' >> $GITHUB_STEP_SUMMARY

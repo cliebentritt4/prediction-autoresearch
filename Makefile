@@ -1,4 +1,4 @@
-.PHONY: setup sync prepare train index analyze compress test lint clean
+.PHONY: setup sync prepare train index analyze compress test lint clean serve runner research
 
 # Setup: install all dependencies via uv
 setup: sync index
@@ -48,6 +48,23 @@ test:
 lint:
 	uv run ruff check .
 	uv run ruff format --check .
+
+# Start prediction API server
+serve:
+	uv run uvicorn market.api.server:app --host 0.0.0.0 --port 8000 --reload
+
+# Set up self-hosted GitHub Actions runner
+runner:
+	@echo "To set up the self-hosted runner:"
+	@echo "1. Go to https://github.com/cliebentritt4/prediction-autoresearch/settings/actions/runners/new"
+	@echo "2. Select macOS + ARM64"
+	@echo "3. Follow the download and configure steps"
+	@echo "4. Run: ./run.sh (or install as service with ./svc.sh install)"
+
+# Run Claude Code autoresearch loop locally (5 experiments)
+research:
+	@echo "Starting autoresearch loop with Claude Code..."
+	claude -p "Read program.md and follow the autoresearch experiment loop. Run 5 experiments. Only modify train.py. Record results in results.tsv. Commit improvements, revert failures." --allowedTools "Edit,Read,Write,Bash,Glob,Grep" --max-turns 100
 
 # Clean generated files
 clean:

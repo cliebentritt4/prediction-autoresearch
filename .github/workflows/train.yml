@@ -1,0 +1,92 @@
+name: Train (Self-Hosted MLX)
+
+on:
+  workflow_dispatch:
+    inputs:
+      time_budget:
+        description: "Training time budget in seconds"
+        default: "300"
+        type: string
+      experiment_note:
+        description: "Optional note for this experiment"
+        default: ""
+        type: string
+  push:
+    branches: [main]
+    paths:
+      - "train.py"
+
+jobs:
+  train:
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Prepare market features
+        run: uv run prepare.py --market 2>&1 || echo "Market features not ready yet, continuing with text only"
+
+      - name: Run training experiment
+        env:
+          TIME_BUDGET: ${{ github.event.inputs.time_budget || '300' }}
+        run: |
+          uv run train.py 2>&1 | tee run.log
+          echo "## Training Results" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep "^val_bpb:\|^peak_mem_mb:\|^step:" run.log | tail -20 >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Extract metrics
+        id: metrics
+        run: |
+          VAL_BPB=$(grep "^val_bpb:" run.log | tail -1 | awk '{print $2}')
+          PEAK_MEM=$(grep "^peak_mem_mb:" run.log | tail -1 | awk '{print $2}')
+          echo "val_bpb=$VAL_BPB" >> $GITHUB_OUTPUT
+          echo "peak_mem=$PEAK_MEM" >> $GITHUB_OUTPUT
+
+      - name: Append to results.tsv
+        run: |
+          DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          COMMIT=$(git rev-parse --short HEAD)
+          VAL_BPB="${{ steps.metrics.outputs.val_bpb }}"
+          PEAK_MEM="${{ steps.metrics.outputs.peak_mem }}"
+          NOTE="${{ github.event.inputs.experiment_note || 'auto' }}"
+          echo -e "${DATE}\t${COMMIT}\t${VAL_BPB}\t${PEAK_MEM}\t${NOTE}" >> results.tsv
+
+      - name: Commit results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add results.tsv
+          git diff --cached --quiet || git commit -m "experiment: val_bpb=${{ steps.metrics.outputs.val_bpb }} (${{ github.event.inputs.experiment_note || 'auto' }})"
+          git push
+
+      - name: Comment on commit
+        if: github.event_name == 'push'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const valBpb = '${{ steps.metrics.outputs.val_bpb }}';
+            const peakMem = '${{ steps.metrics.outputs.peak_mem }}';
+            await github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: `## Experiment Results\n| Metric | Value |\n|--------|-------|\n| val_bpb | ${valBpb} |\n| peak_mem_mb | ${peakMem} |\n\nTriggered by: ${context.eventName}`
+            });
+
+      - name: Upload run log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: run-log-${{ github.sha }}
+          path: run.log
+          retention-days: 30

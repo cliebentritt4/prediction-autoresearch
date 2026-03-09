@@ -1,0 +1,65 @@
+name: Collect Market Data
+
+on:
+  schedule:
+    # Run daily at 6 AM UTC (11 PM PT)
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      indexer:
+        description: "Which indexer to run"
+        type: choice
+        options:
+          - all
+          - kalshi-markets
+          - kalshi-trades
+          - polymarket-markets
+          - polymarket-trades
+        default: "all"
+
+jobs:
+  collect:
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 480  # 8 hours max
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Run Kalshi markets indexer
+        if: contains(fromJSON('["all", "kalshi-markets"]'), github.event.inputs.indexer || 'all')
+        run: |
+          timeout 7200 uv run -m market.indexers.kalshi.markets 2>&1 | tail -20
+          echo "Kalshi markets collection complete" >> $GITHUB_STEP_SUMMARY
+
+      - name: Run Kalshi trades indexer
+        if: contains(fromJSON('["all", "kalshi-trades"]'), github.event.inputs.indexer || 'all')
+        run: |
+          timeout 7200 uv run -m market.indexers.kalshi.trades 2>&1 | tail -20
+          echo "Kalshi trades collection complete" >> $GITHUB_STEP_SUMMARY
+
+      - name: Run Polymarket markets indexer
+        if: contains(fromJSON('["all", "polymarket-markets"]'), github.event.inputs.indexer || 'all')
+        run: |
+          timeout 7200 uv run -m market.indexers.polymarket.markets 2>&1 | tail -20
+          echo "Polymarket markets collection complete" >> $GITHUB_STEP_SUMMARY
+
+      - name: Run Polymarket trades indexer
+        if: contains(fromJSON('["all", "polymarket-trades"]'), github.event.inputs.indexer || 'all')
+        run: |
+          timeout 7200 uv run -m market.indexers.polymarket.trades 2>&1 | tail -20
+          echo "Polymarket trades collection complete" >> $GITHUB_STEP_SUMMARY
+
+      - name: Report data sizes
+        if: always()
+        run: |
+          echo "## Data Collection Summary" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          du -sh data/*/* 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "No data directories found" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

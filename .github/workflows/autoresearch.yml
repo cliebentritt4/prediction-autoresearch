@@ -1,0 +1,177 @@
+name: Autoresearch (Claude Code)
+
+on:
+  workflow_dispatch:
+    inputs:
+      num_experiments:
+        description: "Number of experiments to run"
+        default: "5"
+        type: string
+      focus:
+        description: "Research focus area"
+        type: choice
+        options:
+          - auto
+          - text-only-baseline
+          - hyperparameter-tuning
+          - market-features
+          - architecture
+        default: "auto"
+  schedule:
+    # Run autoresearch loop every 6 hours
+    - cron: "0 */6 * * *"
+
+env:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+jobs:
+  autoresearch:
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 120  # 2 hours max
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for git operations
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Verify data exists
+        id: data_check
+        run: |
+          TEXT_OK="false"
+          MARKET_OK="false"
+          if ls ~/.cache/autoresearch/shard_*.parquet 1>/dev/null 2>&1; then
+            TEXT_OK="true"
+          fi
+          if ls data/kalshi/markets/*.parquet 1>/dev/null 2>&1 || ls data/polymarket/markets/*.parquet 1>/dev/null 2>&1; then
+            MARKET_OK="true"
+          fi
+          echo "text_ok=$TEXT_OK" >> $GITHUB_OUTPUT
+          echo "market_ok=$MARKET_OK" >> $GITHUB_OUTPUT
+          echo "Text data ready: $TEXT_OK"
+          echo "Market data ready: $MARKET_OK"
+
+      - name: Prepare text data if needed
+        if: steps.data_check.outputs.text_ok != 'true'
+        run: uv run prepare.py
+
+      - name: Prepare market features if available
+        if: steps.data_check.outputs.market_ok == 'true'
+        run: uv run prepare.py --market 2>&1 || echo "Market feature prep failed, continuing text-only"
+
+      - name: Create autoresearch branch
+        run: |
+          BRANCH="autoresearch/run-$(date +%Y%m%d-%H%M)"
+          git checkout -b "$BRANCH"
+          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+
+      - name: Run Claude Code autoresearch loop
+        run: |
+          NUM_EXPERIMENTS="${{ github.event.inputs.num_experiments || '5' }}"
+          FOCUS="${{ github.event.inputs.focus || 'auto' }}"
+
+          FOCUS_INSTRUCTION=""
+          case "$FOCUS" in
+            text-only-baseline)
+              FOCUS_INSTRUCTION="Focus on optimizing the text-only baseline: learning rate, batch size, warmup schedule, weight decay."
+              ;;
+            hyperparameter-tuning)
+              FOCUS_INSTRUCTION="Focus on hyperparameter tuning: try different learning rates, schedulers, optimizers, gradient clipping values."
+              ;;
+            market-features)
+              FOCUS_INSTRUCTION="Focus on incorporating market data: try multi-task learning, feature conditioning, cross-attention between text and market encoders."
+              ;;
+            architecture)
+              FOCUS_INSTRUCTION="Focus on architecture changes: attention heads, layer count, embedding dimensions, positional encoding variants."
+              ;;
+            *)
+              FOCUS_INSTRUCTION="Choose your own research direction based on results.tsv history. Prioritize unexplored approaches."
+              ;;
+          esac
+
+          claude -p "You are an autonomous ML researcher running experiments on this project.
+
+          Read program.md for full instructions. Read results.tsv for experiment history.
+          Read train.py to understand the current model.
+
+          ${FOCUS_INSTRUCTION}
+
+          Run exactly ${NUM_EXPERIMENTS} experiments following the loop in program.md:
+          1. Have an idea, write it in one sentence
+          2. Edit train.py to implement it
+          3. Run: uv run train.py 2>&1 | tee run.log
+          4. Check results: grep '^val_bpb:\|^peak_mem_mb:' run.log
+          5. If crashed, try to fix (max 3 attempts), then revert
+          6. Record in results.tsv
+          7. If improved: git add -A && git commit -m '<description>'
+          8. If not improved: git checkout -- train.py
+          9. Repeat
+
+          After all experiments, write a brief summary of what you tried and what worked.
+
+          IMPORTANT:
+          - Only modify train.py
+          - Never modify prepare.py, market/*, or program.md
+          - Each experiment has a 5 minute time budget
+          - Commit improvements, revert failures
+          - Be bold with ideas but disciplined with evaluation" \
+            --allowedTools "Edit,Read,Write,Bash,Glob,Grep" \
+            --max-turns 100
+
+      - name: Push results
+        if: always()
+        run: |
+          git config user.name "claude-autoresearch[bot]"
+          git config user.email "claude-autoresearch[bot]@users.noreply.github.com"
+          # Commit any remaining changes
+          git add results.tsv train.py
+          git diff --cached --quiet || git commit -m "autoresearch: final state after experiment batch"
+          git push -u origin "$BRANCH"
+
+      - name: Create PR if improvements found
+        if: always()
+        run: |
+          # Check if we have commits beyond main
+          COMMITS=$(git log main..HEAD --oneline 2>/dev/null | wc -l | tr -d ' ')
+          if [ "$COMMITS" -gt "0" ]; then
+            # Get best val_bpb from this run
+            BEST=$(tail -n +2 results.tsv | sort -t$'\t' -k3 -n | head -1 | cut -f3)
+            gh pr create \
+              --title "autoresearch: ${COMMITS} experiments, best val_bpb=${BEST}" \
+              --body "$(cat <<'EOF'
+          ## Autoresearch Batch Results
+
+          **Experiments run:** ${{ github.event.inputs.num_experiments || '5' }}
+          **Focus area:** ${{ github.event.inputs.focus || 'auto' }}
+
+          ### Results
+          \`\`\`
+          $(tail -5 results.tsv)
+          \`\`\`
+
+          Generated automatically by Claude Code autoresearch loop.
+          Review train.py changes and merge if val_bpb improved.
+          EOF
+          )" || echo "PR creation failed or no changes to PR"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post summary
+        if: always()
+        run: |
+          echo "## Autoresearch Batch Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** $BRANCH" >> $GITHUB_STEP_SUMMARY
+          echo "**Focus:** ${{ github.event.inputs.focus || 'auto' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Experiment History" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat results.tsv >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "No results yet"
+          echo '```' >> $GITHUB_STEP_SUMMARY
