@@ -1,0 +1,47 @@
+[project]
+name = "prediction-autoresearch"
+version = "0.1.0"
+description = "Autonomous ML research on prediction market data using MLX on Apple Silicon"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+dependencies = [
+    # === autoresearch-mlx core ===
+    "mlx>=0.22.0",
+    "numpy>=1.26",
+    "tiktoken>=0.8",
+    "huggingface-hub>=0.24",
+
+    # === prediction-market-analysis core ===
+    "duckdb>=1.1",
+    "pandas>=2.1",
+    "matplotlib>=3.8",
+    "scipy>=1.12",
+    "brokenaxes>=0.6",
+    "requests>=2.31",
+    "python-dotenv>=1.0",
+    "pyarrow>=15.0",              # Parquet read/write
+
+    # === bridge dependencies (new) ===
+    "tqdm>=4.66",                 # Progress bars for indexing
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.0",
+    "ruff>=0.5",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

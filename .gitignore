@@ -1,0 +1,37 @@
+# Data (downloaded via make, large parquet files)
+data/
+output/
+
+# Cached features
+*.npz
+.cache/
+
+# Environment
+.env
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# UV
+uv.lock
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+run.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
