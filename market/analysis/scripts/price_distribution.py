@@ -29,13 +29,21 @@ class PriceDistributionAnalysis(Analysis):
             fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharey=True)
 
             if len(kalshi_prices) > 0:
-                axes[0].hist(kalshi_prices, bins=50, color="#2196F3", alpha=0.8, edgecolor="white")
+                axes[0].hist(
+                    kalshi_prices,
+                    bins=50,
+                    color="#2196F3",
+                    alpha=0.8,
+                    edgecolor="white",
+                )
             axes[0].set_title("Kalshi — Yes Price Distribution")
             axes[0].set_xlabel("Yes Price (cents)")
             axes[0].set_ylabel("Trade Count")
 
             if len(poly_prices) > 0:
-                axes[1].hist(poly_prices, bins=50, color="#FF9800", alpha=0.8, edgecolor="white")
+                axes[1].hist(
+                    poly_prices, bins=50, color="#FF9800", alpha=0.8, edgecolor="white"
+                )
             axes[1].set_title("Polymarket — Yes Price Distribution")
             axes[1].set_xlabel("Yes Price (cents)")
 

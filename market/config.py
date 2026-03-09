@@ -35,7 +35,9 @@ POLYMARKET_TRADES_GLOB = str(Path(DATA_DIR) / "polymarket" / "trades" / "*.parqu
 # ---------------------------------------------------------------------------
 
 KALSHI_API_KEY_ID = os.getenv("KALSHI_API_KEY_ID", "")
-KALSHI_API_KEY_FILE = os.getenv("KALSHI_API_KEY_FILE", str(_PROJECT_ROOT / "kalshi.key"))
+KALSHI_API_KEY_FILE = os.getenv(
+    "KALSHI_API_KEY_FILE", str(_PROJECT_ROOT / "kalshi.key")
+)
 KALSHI_API_BASE_URL = os.getenv("KALSHI_API_BASE_URL", "https://api.kalshi.com")
 POLYMARKET_RPC_URL = os.getenv("POLYMARKET_RPC_URL", "")
 HF_TOKEN = os.getenv("HF_TOKEN", "")

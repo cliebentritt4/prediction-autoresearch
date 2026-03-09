@@ -35,7 +35,7 @@ from prepare import (
 # ---------------------------------------------------------------------------
 
 BATCH_SIZE = 4
-SEQ_LEN = MAX_SEQ_LEN       # 512
+SEQ_LEN = MAX_SEQ_LEN  # 512
 N_LAYERS = 4
 N_HEADS = 4
 D_MODEL = 128
@@ -50,6 +50,7 @@ WEIGHT_DECAY = 0.1
 # Model — small GPT (agent can replace this entirely)
 # ---------------------------------------------------------------------------
 
+
 class CausalSelfAttention(nn.Module):
     def __init__(self, d_model: int, n_heads: int):
         super().__init__()
@@ -62,9 +63,21 @@ class CausalSelfAttention(nn.Module):
 
     def __call__(self, x):
         B, T, C = x.shape
-        q = self.query_proj(x).reshape(B, T, self.n_heads, self.d_head).transpose(0, 2, 1, 3)
-        k = self.key_proj(x).reshape(B, T, self.n_heads, self.d_head).transpose(0, 2, 1, 3)
-        v = self.value_proj(x).reshape(B, T, self.n_heads, self.d_head).transpose(0, 2, 1, 3)
+        q = (
+            self.query_proj(x)
+            .reshape(B, T, self.n_heads, self.d_head)
+            .transpose(0, 2, 1, 3)
+        )
+        k = (
+            self.key_proj(x)
+            .reshape(B, T, self.n_heads, self.d_head)
+            .transpose(0, 2, 1, 3)
+        )
+        v = (
+            self.value_proj(x)
+            .reshape(B, T, self.n_heads, self.d_head)
+            .transpose(0, 2, 1, 3)
+        )
 
         scale = math.sqrt(self.d_head)
         attn = (q @ k.transpose(0, 1, 3, 2)) / scale
@@ -97,12 +110,21 @@ class TransformerBlock(nn.Module):
 
 
 class GPT(nn.Module):
-    def __init__(self, vocab_size: int, d_model: int, n_heads: int,
-                 n_layers: int, d_ff: int, max_seq_len: int):
+    def __init__(
+        self,
+        vocab_size: int,
+        d_model: int,
+        n_heads: int,
+        n_layers: int,
+        d_ff: int,
+        max_seq_len: int,
+    ):
         super().__init__()
         self.token_emb = nn.Embedding(vocab_size, d_model)
         self.pos_emb = nn.Embedding(max_seq_len, d_model)
-        self.blocks = [TransformerBlock(d_model, n_heads, d_ff) for _ in range(n_layers)]
+        self.blocks = [
+            TransformerBlock(d_model, n_heads, d_ff) for _ in range(n_layers)
+        ]
         self.ln_f = nn.LayerNorm(d_model)
         self.head = nn.Linear(d_model, vocab_size, bias=False)
 
@@ -126,6 +148,7 @@ class GPT(nn.Module):
 # Learning rate schedule
 # ---------------------------------------------------------------------------
 
+
 def get_lr(step: int) -> float:
     """Linear warmup then cosine decay."""
     if step < WARMUP_STEPS:
@@ -144,6 +167,7 @@ def get_lr(step: int) -> float:
 # Training loop
 # ---------------------------------------------------------------------------
 
+
 def train():
     print("=== Baseline Training ===")
     print(f"  d_model={D_MODEL}, n_layers={N_LAYERS}, n_heads={N_HEADS}, d_ff={D_FF}")
@@ -159,7 +183,10 @@ def train():
         max_seq_len=SEQ_LEN,
     )
 
-    n_params = sum(p.size for p in model.parameters().values() if isinstance(p, mx.array))
+    n_params = sum(
+        p.size for p in model.parameters().values() if isinstance(p, mx.array)
+    )
+
     # Handle nested parameters
     def count_params(tree):
         total = 0
@@ -226,8 +253,10 @@ def train():
             avg_loss = running_loss / log_interval
             elapsed = time.time() - start_time
             steps_per_sec = step / elapsed
-            print(f"  step {step:5d} | loss {avg_loss:.4f} | lr {lr:.2e} | "
-                  f"{steps_per_sec:.1f} steps/s | {elapsed:.0f}s/{TIME_BUDGET}s")
+            print(
+                f"  step {step:5d} | loss {avg_loss:.4f} | lr {lr:.2e} | "
+                f"{steps_per_sec:.1f} steps/s | {elapsed:.0f}s/{TIME_BUDGET}s"
+            )
             running_loss = 0.0
 
     train_time = time.time() - start_time

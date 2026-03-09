@@ -40,7 +40,9 @@ class KalshiMarketsIndexer(Indexer):
         current_batch = []
 
         if cursor:
-            print(f"Resuming from checkpoint (batch {batch_num}, {total_saved} already saved)...")
+            print(
+                f"Resuming from checkpoint (batch {batch_num}, {total_saved} already saved)..."
+            )
 
         print("Fetching Kalshi markets (rate limited to ~10 req/sec)...")
         with tqdm(desc="Markets", initial=total_saved) as pbar:
@@ -62,7 +64,9 @@ class KalshiMarketsIndexer(Indexer):
                         )
                         if response.status_code == 429:
                             wait = RATE_LIMIT_WAIT * (attempt + 1)
-                            print(f"\nRate limited. Waiting {wait}s (attempt {attempt + 1}/{MAX_RETRIES})...")
+                            print(
+                                f"\nRate limited. Waiting {wait}s (attempt {attempt + 1}/{MAX_RETRIES})..."
+                            )
                             time.sleep(wait)
                             continue
                         response.raise_for_status()
@@ -74,12 +78,16 @@ class KalshiMarketsIndexer(Indexer):
                                 self._save_batch(current_batch, batch_num)
                                 total_saved += len(current_batch)
                                 batch_num += 1
-                            self.save_progress({
-                                "cursor": cursor,
-                                "batch_num": batch_num,
-                                "total_saved": total_saved,
-                            })
-                            print(f"Progress saved. Run again to resume. Total: {total_saved}")
+                            self.save_progress(
+                                {
+                                    "cursor": cursor,
+                                    "batch_num": batch_num,
+                                    "total_saved": total_saved,
+                                }
+                            )
+                            print(
+                                f"Progress saved. Run again to resume. Total: {total_saved}"
+                            )
                             return
                         wait = RATE_LIMIT_WAIT
                         print(f"\nError: {e}. Retrying in {wait}s...")
@@ -97,18 +105,24 @@ class KalshiMarketsIndexer(Indexer):
                     yes_price = m.get("yes_bid", m.get("last_price", 0))
                     no_price = m.get("no_bid", 100 - yes_price)
 
-                    current_batch.append({
-                        "ticker": m.get("ticker", ""),
-                        "title": m.get("title", ""),
-                        "category": m.get("event_ticker", "").split("-")[0] if m.get("event_ticker") else "",
-                        "status": m.get("status", ""),
-                        "yes_price": float(yes_price),
-                        "no_price": float(no_price),
-                        "volume": int(m.get("volume", 0)),
-                        "open_time": pd.to_datetime(m.get("open_time")),
-                        "close_time": pd.to_datetime(m.get("close_time", m.get("expiration_time"))),
-                        "result": m.get("result") if m.get("result") else None,
-                    })
+                    current_batch.append(
+                        {
+                            "ticker": m.get("ticker", ""),
+                            "title": m.get("title", ""),
+                            "category": m.get("event_ticker", "").split("-")[0]
+                            if m.get("event_ticker")
+                            else "",
+                            "status": m.get("status", ""),
+                            "yes_price": float(yes_price),
+                            "no_price": float(no_price),
+                            "volume": int(m.get("volume", 0)),
+                            "open_time": pd.to_datetime(m.get("open_time")),
+                            "close_time": pd.to_datetime(
+                                m.get("close_time", m.get("expiration_time"))
+                            ),
+                            "result": m.get("result") if m.get("result") else None,
+                        }
+                    )
                     pbar.update(1)
 
                 # Save batch if big enough
@@ -119,11 +133,13 @@ class KalshiMarketsIndexer(Indexer):
                     current_batch = []
 
                 cursor = data.get("cursor")
-                self.save_progress({
-                    "cursor": cursor,
-                    "batch_num": batch_num,
-                    "total_saved": total_saved,
-                })
+                self.save_progress(
+                    {
+                        "cursor": cursor,
+                        "batch_num": batch_num,
+                        "total_saved": total_saved,
+                    }
+                )
 
                 if not cursor:
                     break
@@ -134,12 +150,14 @@ class KalshiMarketsIndexer(Indexer):
             total_saved += len(current_batch)
             batch_num += 1
 
-        self.save_progress({
-            "cursor": None,
-            "complete": True,
-            "total_saved": total_saved,
-            "batch_num": batch_num,
-        })
+        self.save_progress(
+            {
+                "cursor": None,
+                "complete": True,
+                "total_saved": total_saved,
+                "batch_num": batch_num,
+            }
+        )
         print(f"\nDone. Total markets saved: {total_saved} across {batch_num} file(s).")
 
     def _save_batch(self, records: list, batch_num: int):

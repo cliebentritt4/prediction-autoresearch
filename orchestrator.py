@@ -69,20 +69,25 @@ MODELS = {
 # ─────────────────────────────────────────────
 # STATE — shared across threads
 # ─────────────────────────────────────────────
-task_log = []           # all completed + active tasks
-active_tasks = {}       # tag -> task info (for in-progress)
+task_log = []  # all completed + active tasks
+active_tasks = {}  # tag -> task info (for in-progress)
 model_stats = {
     "Claude Opus 4.6": {"tasks": 0, "tokens": 0, "total_time": 0, "cost_usd": 0},
-    "Qwen 32B":        {"tasks": 0, "tokens": 0, "total_time": 0, "cost_usd": 0},
-    "Qwen 14B":        {"tasks": 0, "tokens": 0, "total_time": 0, "cost_usd": 0},
+    "Qwen 32B": {"tasks": 0, "tokens": 0, "total_time": 0, "cost_usd": 0},
+    "Qwen 14B": {"tasks": 0, "tokens": 0, "total_time": 0, "cost_usd": 0},
 }
 machine_status = {
-    "Mac Studio":   {"status": "unknown", "model_loaded": None, "memory_used": None},
-    "MacBook Air":  {"status": "unknown", "model_loaded": None, "memory_used": None},
-    "Anthropic API": {"status": "unknown", "model_loaded": "claude-opus-4-6", "memory_used": None},
+    "Mac Studio": {"status": "unknown", "model_loaded": None, "memory_used": None},
+    "MacBook Air": {"status": "unknown", "model_loaded": None, "memory_used": None},
+    "Anthropic API": {
+        "status": "unknown",
+        "model_loaded": "claude-opus-4-6",
+        "memory_used": None,
+    },
 }
 lock = threading.Lock()
 LOG_FILE = Path("model_usage.log")
+
 
 # ─────────────────────────────────────────────
 # HEALTH CHECK — poll Ollama instances
@@ -97,7 +102,9 @@ def check_ollama_health(url, machine_name):
                 machine_status[machine_name]["status"] = "online"
                 if models:
                     m = models[0]
-                    machine_status[machine_name]["model_loaded"] = m.get("name", "unknown")
+                    machine_status[machine_name]["model_loaded"] = m.get(
+                        "name", "unknown"
+                    )
                     size_gb = m.get("size_vram", 0) / (1024**3)
                     machine_status[machine_name]["memory_used"] = f"{size_gb:.1f} GB"
                 else:
@@ -149,7 +156,9 @@ def call_ollama(url, model, prompt, system="You are an expert Python/MLX enginee
     return content, tokens
 
 
-def call_claude(prompt, system="You are an expert Python/MLX engineer and system architect."):
+def call_claude(
+    prompt, system="You are an expert Python/MLX engineer and system architect."
+):
     if not anthropic:
         return "ERROR: anthropic package not installed. Run: pip install anthropic", 0
     client = anthropic.Anthropic()
@@ -170,9 +179,11 @@ def dispatch(tag, prompt, file_context=None):
 
     full_prompt = prompt
     if file_context:
-        full_prompt = f"Here is the file contents:\n\n```\n{file_context}\n```\n\n{prompt}"
+        full_prompt = (
+            f"Here is the file contents:\n\n```\n{file_context}\n```\n\n{prompt}"
+        )
 
-    task_id = f"{tag}-{int(time.time()*1000)}"
+    task_id = f"{tag}-{int(time.time() * 1000)}"
     task_info = {
         "id": task_id,
         "tag": tag,
@@ -218,16 +229,18 @@ def dispatch(tag, prompt, file_context=None):
                 del active_tasks[tag]
 
         # log to file
-        log_line = json.dumps({
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "model": label,
-            "machine": cfg["machine"],
-            "tag": tag,
-            "tokens": tokens,
-            "duration_sec": round(duration, 1),
-            "cost_usd": round(cost, 4),
-            "prompt_preview": prompt[:80],
-        })
+        log_line = json.dumps(
+            {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "model": label,
+                "machine": cfg["machine"],
+                "tag": tag,
+                "tokens": tokens,
+                "duration_sec": round(duration, 1),
+                "cost_usd": round(cost, 4),
+                "prompt_preview": prompt[:80],
+            }
+        )
         with open(LOG_FILE, "a") as f:
             f.write(log_line + "\n")
 
@@ -658,12 +671,19 @@ Examples:
         """,
     )
     parser.add_argument("prompt", nargs="?", help="Task prompt")
-    parser.add_argument("--tag", choices=["architect", "generate", "iterate", "review"],
-                        help="Route to model: architect/review→Claude, generate→32B, iterate→14B")
+    parser.add_argument(
+        "--tag",
+        choices=["architect", "generate", "iterate", "review"],
+        help="Route to model: architect/review→Claude, generate→32B, iterate→14B",
+    )
     parser.add_argument("--file", help="Include file contents as context")
     parser.add_argument("--save", help="Save response to this file path")
-    parser.add_argument("--dashboard", action="store_true", help="Only start the dashboard (no task)")
-    parser.add_argument("--port", type=int, default=8080, help="Dashboard port (default 8080)")
+    parser.add_argument(
+        "--dashboard", action="store_true", help="Only start the dashboard (no task)"
+    )
+    parser.add_argument(
+        "--port", type=int, default=8080, help="Dashboard port (default 8080)"
+    )
     parser.add_argument("--air-ip", help="MacBook Air IP (overrides default)")
 
     args = parser.parse_args()

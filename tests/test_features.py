@@ -40,17 +40,19 @@ def test_feature_columns_immutable():
 
 def make_mock_features_df() -> pd.DataFrame:
     """Create a mock DataFrame matching extract.py output schema."""
-    return pd.DataFrame({
-        "ticker": ["MARKET-A"] * 5 + ["MARKET-B"] * 3,
-        "bucket_time": pd.date_range("2024-01-01", periods=8, freq="h"),
-        "yes_price": [0.5, 0.52, 0.55, 0.60, 0.58, 0.30, 0.35, 0.40],
-        "volume": [2.1, 2.5, 3.0, 2.8, 2.2, 1.5, 1.8, 2.0],
-        "spread": [0.1, 0.08, 0.12, 0.15, 0.10, 0.40, 0.35, 0.30],
-        "volatility": [0.02, 0.03, 0.01, 0.04, 0.02, 0.05, 0.03, 0.02],
-        "time_to_resolution": [14.0, 13.5, 13.0, 12.5, 12.0, 10.0, 9.5, 9.0],
-        "outcome": [1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0],
-        "source": ["kalshi"] * 5 + ["polymarket"] * 3,
-    })
+    return pd.DataFrame(
+        {
+            "ticker": ["MARKET-A"] * 5 + ["MARKET-B"] * 3,
+            "bucket_time": pd.date_range("2024-01-01", periods=8, freq="h"),
+            "yes_price": [0.5, 0.52, 0.55, 0.60, 0.58, 0.30, 0.35, 0.40],
+            "volume": [2.1, 2.5, 3.0, 2.8, 2.2, 1.5, 1.8, 2.0],
+            "spread": [0.1, 0.08, 0.12, 0.15, 0.10, 0.40, 0.35, 0.30],
+            "volatility": [0.02, 0.03, 0.01, 0.04, 0.02, 0.05, 0.03, 0.02],
+            "time_to_resolution": [14.0, 13.5, 13.0, 12.5, 12.0, 10.0, 9.5, 9.0],
+            "outcome": [1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+            "source": ["kalshi"] * 5 + ["polymarket"] * 3,
+        }
+    )
 
 
 def test_mock_df_schema():

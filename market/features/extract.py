@@ -67,7 +67,9 @@ def extract_market_features(source: str = "all") -> pd.DataFrame:
 
     if not frames:
         return pd.DataFrame(
-            columns=["ticker", "bucket_time"] + FEATURE_COLUMNS + [LABEL_COLUMN, "source"]
+            columns=["ticker", "bucket_time"]
+            + FEATURE_COLUMNS
+            + [LABEL_COLUMN, "source"]
         )
 
     return pd.concat(frames, ignore_index=True)

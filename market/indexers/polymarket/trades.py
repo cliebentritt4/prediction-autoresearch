@@ -7,6 +7,7 @@ Also fetches price history from the CLOB API
 (https://clob.polymarket.com/prices-history) for pre-bucketed time series.
 Requires: Polymarket markets already collected (run markets indexer first).
 """
+
 import time
 import requests
 import pandas as pd
@@ -87,16 +88,20 @@ class PolymarketTradesIndexer(Indexer):
 
             for t in trades:
                 price = float(t.get("price", 0))
-                all_trades.append({
-                    "ticker": condition_id,
-                    "yes_price": price * 100,
-                    "no_price": (1 - price) * 100,
-                    "count": int(t.get("size", 1)),
-                    "taker_side": t.get("side", "").lower(),
-                    "created_time": pd.to_datetime(
-                        t.get("timestamp"), unit="s", utc=True
-                    ) if t.get("timestamp") else None,
-                })
+                all_trades.append(
+                    {
+                        "ticker": condition_id,
+                        "yes_price": price * 100,
+                        "no_price": (1 - price) * 100,
+                        "count": int(t.get("size", 1)),
+                        "taker_side": t.get("side", "").lower(),
+                        "created_time": pd.to_datetime(
+                            t.get("timestamp"), unit="s", utc=True
+                        )
+                        if t.get("timestamp")
+                        else None,
+                    }
+                )
 
             if len(trades) < 10000:
                 break
@@ -115,11 +120,16 @@ class PolymarketTradesIndexer(Indexer):
         market_ids = self._get_market_ids()
         remaining = [m for m in market_ids if m not in completed_markets]
 
-        print(f"Fetching trades for {len(remaining)} markets "
-              f"({len(completed_markets)} already done)...")
+        print(
+            f"Fetching trades for {len(remaining)} markets "
+            f"({len(completed_markets)} already done)..."
+        )
 
-        with tqdm(total=len(market_ids), initial=len(completed_markets),
-                  desc="Markets processed") as pbar:
+        with tqdm(
+            total=len(market_ids),
+            initial=len(completed_markets),
+            desc="Markets processed",
+        ) as pbar:
             for condition_id in remaining:
                 trades = self._fetch_trades_for_market(condition_id)
                 current_batch.extend(trades)
@@ -132,19 +142,23 @@ class PolymarketTradesIndexer(Indexer):
                     total_saved += len(current_batch)
                     batch_num += 1
                     current_batch = []
-                    self.save_progress({
-                        "completed_markets": list(completed_markets),
-                        "batch_num": batch_num,
-                        "total_saved": total_saved,
-                    })
+                    self.save_progress(
+                        {
+                            "completed_markets": list(completed_markets),
+                            "batch_num": batch_num,
+                            "total_saved": total_saved,
+                        }
+                    )
 
                 # Save progress periodically (every 100 markets)
                 if len(completed_markets) % 100 == 0:
-                    self.save_progress({
-                        "completed_markets": list(completed_markets),
-                        "batch_num": batch_num,
-                        "total_saved": total_saved + len(current_batch),
-                    })
+                    self.save_progress(
+                        {
+                            "completed_markets": list(completed_markets),
+                            "batch_num": batch_num,
+                            "total_saved": total_saved + len(current_batch),
+                        }
+                    )
 
         # Save remaining
         if current_batch:
@@ -152,12 +166,14 @@ class PolymarketTradesIndexer(Indexer):
             total_saved += len(current_batch)
             batch_num += 1
 
-        self.save_progress({
-            "complete": True,
-            "completed_markets": list(completed_markets),
-            "total_saved": total_saved,
-            "batch_num": batch_num,
-        })
+        self.save_progress(
+            {
+                "complete": True,
+                "completed_markets": list(completed_markets),
+                "total_saved": total_saved,
+                "batch_num": batch_num,
+            }
+        )
         print(f"\nDone. Total trades: {total_saved} across {batch_num} file(s).")
 
     def _save_batch(self, records: list, batch_num: int):

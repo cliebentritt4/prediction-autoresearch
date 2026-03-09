@@ -22,10 +22,11 @@ TRAIN_RATIO = 0.85
 
 class MarketSequences(NamedTuple):
     """Container for processed market sequences."""
-    train_features: mx.array   # (n_train_seqs, MAX_SEQ_LEN, n_features)
-    train_labels: mx.array     # (n_train_seqs,) — outcome 0 or 1
-    val_features: mx.array     # (n_val_seqs, MAX_SEQ_LEN, n_features)
-    val_labels: mx.array       # (n_val_seqs,)
+
+    train_features: mx.array  # (n_train_seqs, MAX_SEQ_LEN, n_features)
+    train_labels: mx.array  # (n_train_seqs,) — outcome 0 or 1
+    val_features: mx.array  # (n_val_seqs, MAX_SEQ_LEN, n_features)
+    val_labels: mx.array  # (n_val_seqs,)
     feature_names: list[str]
 
 
@@ -108,6 +109,8 @@ def _df_to_sequences(
 
     if not sequences:
         n_features = len(feature_cols)
-        return np.zeros((0, MAX_SEQ_LEN, n_features), dtype=np.float32), np.zeros(0, dtype=np.float32)
+        return np.zeros((0, MAX_SEQ_LEN, n_features), dtype=np.float32), np.zeros(
+            0, dtype=np.float32
+        )
 
     return np.stack(sequences), np.array(labels, dtype=np.float32)

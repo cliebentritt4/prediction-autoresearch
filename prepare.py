@@ -30,9 +30,9 @@ from huggingface_hub import hf_hub_download
 # ---------------------------------------------------------------------------
 
 MAX_SEQ_LEN = 512
-TIME_BUDGET = 300       # 5 minutes wall clock
-EVAL_TOKENS = 100_000   # tokens to evaluate on
-VOCAB_SIZE = 50257      # GPT-2 BPE vocab size
+TIME_BUDGET = 300  # 5 minutes wall clock
+EVAL_TOKENS = 100_000  # tokens to evaluate on
+VOCAB_SIZE = 50257  # GPT-2 BPE vocab size
 
 # Cache directories
 TEXT_CACHE_DIR = Path(os.path.expanduser("~/.cache/autoresearch"))
@@ -50,6 +50,7 @@ SHARD_FILENAMES = [f"shard_{i:05d}.parquet" for i in range(NUM_SHARDS)]
 # Tokenizer
 # ---------------------------------------------------------------------------
 
+
 def get_tokenizer():
     """Return the GPT-2 BPE tokenizer via tiktoken."""
     return tiktoken.get_encoding("gpt2")
@@ -64,6 +65,7 @@ def tokens_to_bytes_ratio() -> float:
 # ---------------------------------------------------------------------------
 # Text Data Download
 # ---------------------------------------------------------------------------
+
 
 def download_text_data():
     """Download text data shards from HuggingFace if not cached."""
@@ -82,6 +84,7 @@ def download_text_data():
         downloaded_path = Path(downloaded)
         if downloaded_path != shard_path:
             import shutil
+
             shutil.move(str(downloaded_path), str(shard_path))
         print(f"  -> {shard_path}")
     print(f"All text shards cached in {TEXT_CACHE_DIR}")
@@ -106,6 +109,7 @@ def load_shard_tokens(shard_path: Path) -> np.ndarray:
 # DataLoader — text shards
 # ---------------------------------------------------------------------------
 
+
 class DataLoader:
     """
     Loads pre-tokenized text data shards and serves random batches.
@@ -113,7 +117,9 @@ class DataLoader:
     Each batch is (input_ids, target_ids) where target = input shifted by 1.
     """
 
-    def __init__(self, split: str = "train", batch_size: int = 4, seq_len: int = MAX_SEQ_LEN):
+    def __init__(
+        self, split: str = "train", batch_size: int = 4, seq_len: int = MAX_SEQ_LEN
+    ):
         self.batch_size = batch_size
         self.seq_len = seq_len
 
@@ -146,10 +152,14 @@ class DataLoader:
         Return (inputs, targets) each of shape (batch_size, seq_len).
         Targets are inputs shifted right by 1.
         """
-        starts = self._rng.integers(0, self.n_tokens - self.seq_len - 1, size=self.batch_size)
+        starts = self._rng.integers(
+            0, self.n_tokens - self.seq_len - 1, size=self.batch_size
+        )
 
         input_batch = np.stack([self.tokens[s : s + self.seq_len] for s in starts])
-        target_batch = np.stack([self.tokens[s + 1 : s + self.seq_len + 1] for s in starts])
+        target_batch = np.stack(
+            [self.tokens[s + 1 : s + self.seq_len + 1] for s in starts]
+        )
 
         return mx.array(input_batch), mx.array(target_batch)
 
@@ -157,6 +167,7 @@ class DataLoader:
 # ---------------------------------------------------------------------------
 # MarketDataLoader — cached market feature arrays
 # ---------------------------------------------------------------------------
+
 
 class MarketDataLoader:
     """
@@ -216,8 +227,10 @@ class MarketDataLoader:
 # Evaluation — bits per byte (ground truth metric)
 # ---------------------------------------------------------------------------
 
-def evaluate_bpb(model, split: str = "val", seq_len: int = MAX_SEQ_LEN,
-                 n_tokens: int = EVAL_TOKENS) -> float:
+
+def evaluate_bpb(
+    model, split: str = "val", seq_len: int = MAX_SEQ_LEN, n_tokens: int = EVAL_TOKENS
+) -> float:
     """
     Evaluate bits-per-byte on text validation data.
 
@@ -268,6 +281,7 @@ def evaluate_bpb(model, split: str = "val", seq_len: int = MAX_SEQ_LEN,
 # Market Feature Preparation
 # ---------------------------------------------------------------------------
 
+
 def prepare_market_features():
     """
     Extract market features from parquet data, build sequences,
@@ -310,12 +324,14 @@ def prepare_market_features():
 # Main — download text data or prepare market features
 # ---------------------------------------------------------------------------
 
+
 def main():
     if "--market" in sys.argv:
         prepare_market_features()
     elif "--force" in sys.argv and "--market" in sys.argv:
         # Force rebuild market cache
         from market.features.cache import CACHE_FILE
+
         if CACHE_FILE.exists():
             CACHE_FILE.unlink()
         prepare_market_features()

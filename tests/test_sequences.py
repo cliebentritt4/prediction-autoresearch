@@ -20,17 +20,19 @@ def make_test_df(n_markets: int = 20, steps_per_market: int = 100) -> pd.DataFra
         ticker = f"TEST-{i:03d}"
         outcome = float(rng.choice([0, 1]))
         for t in range(steps_per_market):
-            rows.append({
-                "ticker": ticker,
-                "bucket_time": pd.Timestamp("2024-01-01") + pd.Timedelta(hours=t),
-                "yes_price": rng.uniform(0.1, 0.9),
-                "volume": rng.uniform(0, 5),
-                "spread": rng.uniform(0, 0.5),
-                "volatility": rng.uniform(0, 0.1),
-                "time_to_resolution": rng.uniform(5, 15),
-                "outcome": outcome,
-                "source": "test",
-            })
+            rows.append(
+                {
+                    "ticker": ticker,
+                    "bucket_time": pd.Timestamp("2024-01-01") + pd.Timedelta(hours=t),
+                    "yes_price": rng.uniform(0.1, 0.9),
+                    "volume": rng.uniform(0, 5),
+                    "spread": rng.uniform(0, 0.5),
+                    "volatility": rng.uniform(0, 0.1),
+                    "time_to_resolution": rng.uniform(5, 15),
+                    "outcome": outcome,
+                    "source": "test",
+                }
+            )
 
     return pd.DataFrame(rows)
 

@@ -24,7 +24,9 @@ def main():
     names = sorted(ANALYSES.keys())
     for i, name in enumerate(names, 1):
         cls = ANALYSES[name]
-        print(f"  {i}. {name} — {cls.__doc__.strip().splitlines()[0] if cls.__doc__ else 'No description'}")
+        print(
+            f"  {i}. {name} — {cls.__doc__.strip().splitlines()[0] if cls.__doc__ else 'No description'}"
+        )
 
     print("\n  0. Run all")
     print()

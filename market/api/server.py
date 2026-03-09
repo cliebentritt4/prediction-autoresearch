@@ -12,6 +12,7 @@ Usage:
     uv run uvicorn market.api.server:app --host 0.0.0.0 --port 8000
     uv run uvicorn market.api.server:app --reload  # dev mode
 """
+
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -50,6 +51,7 @@ RESULTS_TSV = PROJECT_ROOT / "results.tsv"
 # ---------------------------------------------------------------------------
 # Response models
 # ---------------------------------------------------------------------------
+
 
 class HealthResponse(BaseModel):
     status: str
@@ -106,6 +108,7 @@ def _get_db():
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+
 
 @app.get("/health", response_model=HealthResponse)
 def health():
@@ -167,14 +170,16 @@ def data_summary():
             except Exception:
                 count = 0
 
-            summaries.append(DataSummary(
-                platform=platform,
-                dataset=dataset,
-                record_count=count,
-                file_count=len(parquets),
-                total_size_mb=round(total_size / (1024 * 1024), 1),
-                newest_file=newest.name,
-            ))
+            summaries.append(
+                DataSummary(
+                    platform=platform,
+                    dataset=dataset,
+                    record_count=count,
+                    file_count=len(parquets),
+                    total_size_mb=round(total_size / (1024 * 1024), 1),
+                    newest_file=newest.name,
+                )
+            )
 
     return summaries
 
@@ -194,13 +199,15 @@ def metrics():
             parts = line.strip().split("\t")
             if len(parts) >= 4:
                 try:
-                    rows.append({
-                        "date": parts[0],
-                        "commit": parts[1],
-                        "val_bpb": float(parts[2]) if parts[2] else None,
-                        "peak_mem_mb": float(parts[3]) if parts[3] else None,
-                        "note": parts[4] if len(parts) > 4 else "",
-                    })
+                    rows.append(
+                        {
+                            "date": parts[0],
+                            "commit": parts[1],
+                            "val_bpb": float(parts[2]) if parts[2] else None,
+                            "peak_mem_mb": float(parts[3]) if parts[3] else None,
+                            "note": parts[4] if len(parts) > 4 else "",
+                        }
+                    )
                 except (ValueError, IndexError):
                     continue
 
@@ -290,15 +297,19 @@ def signals(
         edge = abs(model_est - 0.5) - abs(current - 0.5)
 
         if abs(edge) >= min_edge:
-            signals_list.append(MarketSignal(
-                ticker=row["ticker"],
-                platform=platform,
-                current_price=round(current, 4),
-                model_estimate=round(model_est, 4),
-                edge=round(edge, 4),
-                confidence=None,  # TODO: model confidence score
-                last_trade_time=str(row["last_trade"]) if pd.notna(row["last_trade"]) else None,
-            ))
+            signals_list.append(
+                MarketSignal(
+                    ticker=row["ticker"],
+                    platform=platform,
+                    current_price=round(current, 4),
+                    model_estimate=round(model_est, 4),
+                    edge=round(edge, 4),
+                    confidence=None,  # TODO: model confidence score
+                    last_trade_time=str(row["last_trade"])
+                    if pd.notna(row["last_trade"])
+                    else None,
+                )
+            )
 
     signals_list.sort(key=lambda s: abs(s.edge or 0), reverse=True)
 

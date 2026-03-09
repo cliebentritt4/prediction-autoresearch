@@ -37,8 +37,14 @@ class VolumeAnalysis(Analysis):
                     """).fetchdf()
 
                     if len(df) > 0:
-                        ax.plot(df["day"], df["daily_volume"],
-                                label=label, color=color, alpha=0.8, linewidth=1.2)
+                        ax.plot(
+                            df["day"],
+                            df["daily_volume"],
+                            label=label,
+                            color=color,
+                            alpha=0.8,
+                            linewidth=1.2,
+                        )
                 except Exception:
                     print(f"  Warning: no data for {label}")
 
