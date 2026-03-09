@@ -68,7 +68,7 @@ class PolymarketMarketsIndexer(Indexer):
                             continue
                         if response.status_code == 400:
                             # Bad request usually means invalid cursor = end of data
-                            print(f"\nReached end of pagination (400 response).")
+                            print("\nReached end of pagination (400 response).")
                             response = None
                             break
                         response.raise_for_status()
@@ -99,7 +99,7 @@ class PolymarketMarketsIndexer(Indexer):
                 try:
                     data = response.json()
                 except Exception:
-                    print(f"\nFailed to parse JSON response. Stopping.")
+                    print("\nFailed to parse JSON response. Stopping.")
                     break
 
                 # Polymarket returns either a list or {"data": [...], "next_cursor": "..."}
