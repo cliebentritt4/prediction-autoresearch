@@ -12,6 +12,7 @@ import pandas as pd
 from market.config import (
     KALSHI_MARKETS_GLOB,
     KALSHI_TRADES_GLOB,
+    MIN_TRADES_PER_MARKET,
     POLYMARKET_MARKETS_GLOB,
     POLYMARKET_TRADES_GLOB,
 )
@@ -112,10 +113,17 @@ def _extract_kalshi(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
         FROM trades t
         JOIN markets m ON t.ticker = m.ticker
         GROUP BY t.ticker, time_bucket(INTERVAL '1 hour', t.trade_time)
+    ),
+    filtered AS (
+        SELECT ticker
+        FROM bucketed
+        GROUP BY ticker
+        HAVING COUNT(*) >= {MIN_TRADES_PER_MARKET}
     )
-    SELECT *, 'kalshi' AS source
-    FROM bucketed
-    ORDER BY ticker, bucket_time
+    SELECT b.*, 'kalshi' AS source
+    FROM bucketed b
+    JOIN filtered f ON b.ticker = f.ticker
+    ORDER BY b.ticker, b.bucket_time
     """
     try:
         return con.execute(query).fetchdf()
@@ -152,10 +160,17 @@ def _extract_polymarket(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
         FROM trades t
         JOIN markets m ON t.ticker = m.ticker
         GROUP BY t.ticker, time_bucket(INTERVAL '1 hour', t.trade_time)
+    ),
+    filtered AS (
+        SELECT ticker
+        FROM bucketed
+        GROUP BY ticker
+        HAVING COUNT(*) >= {MIN_TRADES_PER_MARKET}
     )
-    SELECT *, 'polymarket' AS source
-    FROM bucketed
-    ORDER BY ticker, bucket_time
+    SELECT b.*, 'polymarket' AS source
+    FROM bucketed b
+    JOIN filtered f ON b.ticker = f.ticker
+    ORDER BY b.ticker, b.bucket_time
     """
     try:
         return con.execute(query).fetchdf()
