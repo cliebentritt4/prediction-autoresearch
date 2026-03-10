@@ -105,7 +105,7 @@ def _extract_kalshi(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
             LN(SUM(t.volume) + 1) AS volume,
             AVG(ABS(t.yes_price - 50.0)) / 50.0 AS spread,
             STDDEV(t.yes_price) / 100.0 AS volatility,
-            LN(EXTRACT(EPOCH FROM (MIN(m.close_time) - time_bucket(INTERVAL '1 hour', t.trade_time))) + 1) AS time_to_resolution,
+            LN(GREATEST(EXTRACT(EPOCH FROM (MIN(m.close_time) - time_bucket(INTERVAL '1 hour', t.trade_time))), 0) + 1) AS time_to_resolution,
             CASE WHEN MIN(m.result) = 'yes' THEN 1.0
                  WHEN MIN(m.result) = 'no' THEN 0.0
                  ELSE NULL END AS outcome
@@ -119,7 +119,8 @@ def _extract_kalshi(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     """
     try:
         return con.execute(query).fetchdf()
-    except Exception:
+    except Exception as e:
+        print(f"  Kalshi extraction error: {e}")
         return pd.DataFrame()
 
 
@@ -144,7 +145,7 @@ def _extract_polymarket(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
             LN(SUM(t.volume) + 1) AS volume,
             AVG(ABS(t.yes_price - 50.0)) / 50.0 AS spread,
             STDDEV(t.yes_price) / 100.0 AS volatility,
-            LN(EXTRACT(EPOCH FROM (MIN(m.close_time) - time_bucket(INTERVAL '1 hour', t.trade_time))) + 1) AS time_to_resolution,
+            LN(GREATEST(EXTRACT(EPOCH FROM (MIN(m.close_time) - time_bucket(INTERVAL '1 hour', t.trade_time))), 0) + 1) AS time_to_resolution,
             CASE WHEN MIN(m.result) = 'yes' THEN 1.0
                  WHEN MIN(m.result) = 'no' THEN 0.0
                  ELSE NULL END AS outcome
@@ -158,5 +159,6 @@ def _extract_polymarket(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     """
     try:
         return con.execute(query).fetchdf()
-    except Exception:
+    except Exception as e:
+        print(f"  Polymarket extraction error: {e}")
         return pd.DataFrame()
