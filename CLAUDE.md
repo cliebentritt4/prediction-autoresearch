@@ -45,3 +45,12 @@ make lint                                  # Run ruff
 - FastAPI for prediction serving
 - uv for package management (not pip/venv)
 - GitHub Actions CI/CD with self-hosted macOS ARM64 runner
+
+## Current Status (March 9, 2026)
+
+- Baseline: val_bpb 2.5228, 13.7M params, 1728 MB peak, M4 Max 36GB
+- All 4 datasets fully collected (Kalshi markets/trades, Polymarket markets/trades)
+- LR schedule decays to ~0 by step 3000 of 8851 — fixing this is priority #1
+- 28+ GB unified memory available for training — scale batch_size and model aggressively
+- Self-hosted GitHub Actions runner connected (needs sudo ./svc.sh install)
+- ANTHROPIC_API_KEY needed in GitHub secrets for automated autoresearch
